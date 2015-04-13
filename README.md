@@ -1,4 +1,4 @@
-# Space Engineers In-Game Scripting Compiler
+# Space Engineers In-Game Scripting Builder
 
 This project builds Space Engineers in-game scripts from an existing Visual Studio project.
 
