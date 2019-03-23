@@ -4,48 +4,48 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace ScriptBuilder
 {
     internal class Script
     {
-        private string sourceDirectory;
-        private string outputDirectory;
-        private string scriptName;
-        private string output = "";
+        public string SourcePath { get; set; }
+        public string ScriptFilePath { get; set; }
+        public string ScriptName { get; private set; }
+
+        public string Output { get; private set; }
+
+        public string OutputWithUsings
+        {
+            get
+            {
+                return string.Format(defaultUsings, this.ScriptName, this.Output);
+            }
+        }
+
         private readonly List<string> filesImported = new List<string>();
 
-        public Script(string sourceDirectory, string scriptName)
+        public Script(string sourcePath, string scriptFilePath)
         {
-            this.sourceDirectory = Path.GetFullPath(sourceDirectory);
-            this.outputDirectory = Path.Combine(this.sourceDirectory, "Compiled");
-
-            this.scriptName = scriptName;
+            this.Output = "";
+            this.SourcePath = sourcePath;
+            this.ScriptFilePath = scriptFilePath;
+            this.ScriptName = scriptFilePath.Substring(scriptFilePath.LastIndexOf("\\") + 1).Replace(".cs", "");
+            //this.outputDirectory = Path.Combine(this.sourceDirectory, "Compiled");
         }
 
-        public void Compile(bool withUsings)
+        public Script Compile()
         {
-            // Get the script
-            string scriptFile = Path.Combine(this.sourceDirectory, "Scripts", this.scriptName + ".cs");
-            if (File.Exists(scriptFile))
-            {
-                this.output += this.ProcessFile(scriptFile);
+            var sw = Stopwatch.StartNew();
+            Console.Write("Compiling script: " + ScriptName + "...");
 
-                if (withUsings)
-                {
-                    this.output = string.Format(defaultUsings, this.scriptName, this.output);
-                }
-            }
-        }
+            this.Output = this.ProcessFile(this.ScriptFilePath);
 
-        public void Write()
-        {
-            if (!Directory.Exists(this.outputDirectory))
-            {
-                Directory.CreateDirectory(this.outputDirectory);
-            }
-            string filename = Path.Combine(this.outputDirectory, string.Format("{0}.cs", this.scriptName));
-            File.WriteAllText(filename, this.output);
+            sw.Stop();
+            Console.WriteLine(" Done in " + sw.ElapsedMilliseconds + " ms");
+
+            return this;
         }
 
         private string ProcessFile(string filename)
@@ -98,7 +98,7 @@ namespace ScriptBuilder
 
         private string ProcessUsings(List<string> usings)
         {
-            var filenames = usings.Where(t => !string.IsNullOrEmpty(t.Trim())).Select(t => Path.Combine(this.sourceDirectory, GetFilenameFromUsing(t)));
+            var filenames = usings.Where(t => !string.IsNullOrEmpty(t.Trim())).Select(t => Path.Combine(this.SourcePath, GetFilenameFromUsing(t)));
             return String.Join(Environment.NewLine, filenames.Select(ProcessFile));
         }
 
