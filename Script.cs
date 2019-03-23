@@ -7,92 +7,84 @@ using System.Threading.Tasks;
 
 namespace ScriptBuilder
 {
-    class Script
+    internal class Script
     {
         private string sourceDirectory;
         private string outputDirectory;
         private string scriptName;
         private string output = "";
+        private readonly List<string> filesImported = new List<string>();
 
-        public Script (string sourceDirectory, string outputDirectory, string scriptName) {
+        public Script(string sourceDirectory, string scriptName)
+        {
             this.sourceDirectory = Path.GetFullPath(sourceDirectory);
-            this.outputDirectory = Path.GetFullPath(outputDirectory);
+            this.outputDirectory = Path.Combine(this.sourceDirectory, "Compiled");
 
             this.scriptName = scriptName;
-            if (String.IsNullOrEmpty(this.scriptName))
-            {
-                this.scriptName = Path.GetFileName(this.sourceDirectory.TrimEnd(Path.DirectorySeparatorChar));
-            }
         }
 
-        public void Compile()
+        public void Compile(bool withUsings)
         {
-            // Special File - UserConfig.cs
-            string userConfig = Path.Combine(this.sourceDirectory, "UserConfig.cs");
-            if (File.Exists(userConfig))
+            // Get the script
+            string scriptFile = Path.Combine(this.sourceDirectory, "Scripts", this.scriptName + ".cs");
+            if (File.Exists(scriptFile))
             {
-                this.output += this.ProcessFile(userConfig);
+                this.output += this.ProcessFile(scriptFile);
+
+                if (withUsings)
+                {
+                    this.output = string.Format(defaultUsings, this.scriptName, this.output);
+                }
             }
-            this.output += this.ProcessDirectory(this.sourceDirectory, 0);
         }
 
         public void Write()
         {
-            string fullpath = Path.Combine(this.outputDirectory, this.scriptName);
-            if (!Directory.Exists(fullpath))
+            if (!Directory.Exists(this.outputDirectory))
             {
-                Directory.CreateDirectory(fullpath);
+                Directory.CreateDirectory(this.outputDirectory);
             }
-            string filename = Path.Combine(fullpath, "Script.cs");
+            string filename = Path.Combine(this.outputDirectory, string.Format("{0}.cs", this.scriptName));
             File.WriteAllText(filename, this.output);
-        }
-
-        private string ProcessDirectory(string directory, int level)
-        {
-            if (level > 128)
-            {
-                return "";
-            }
-
-            string output = "";
-            foreach (string dir in Directory.GetDirectories(directory))
-            {
-                output += this.ProcessDirectory(dir, level + 1);
-            }
-
-            string userConfig = Path.Combine(this.sourceDirectory, "UserConfig.cs");
-            foreach (string file in Directory.GetFiles(directory, "*.cs"))
-            {
-                if (file == userConfig)
-                {
-                    continue;
-                }
-                output += this.ProcessFile(file);
-            }
-
-            return output;
         }
 
         private string ProcessFile(string filename)
         {
-            if (!File.Exists(filename))
+            if (!File.Exists(filename) || filesImported.IndexOf(filename) >= 0)
             {
                 return "";
             }
 
+            filesImported.Add(filename);
+
             string output = Environment.NewLine + "\t// File: " + Path.GetFileName(filename) + Environment.NewLine;
             List<string> lines = File.ReadAllLines(filename).ToList<string>();
 
-            int startIndex = lines.FindIndex(x => x.Contains("#region SpaceEngineers"));
+            var scriptLines = GetRegion(lines, "SpaceEngineers");
+            var usingsLines = GetRegion(lines, "Usings");
+
+            if (scriptLines != null)
+                output += String.Join(Environment.NewLine, scriptLines);
+
+            if (usingsLines != null)
+                output += ProcessUsings(usingsLines);
+
+            output += Environment.NewLine;
+            return output;
+        }
+
+        private List<string> GetRegion(List<string> lines, string region)
+        {
+            int startIndex = lines.FindIndex(x => x.Contains("#region " + region));
             if (startIndex < 0)
             {
-                return "";
+                return null;
             }
 
             int endIndex = lines.FindIndex(startIndex, x => x.Contains("#endregion"));
             if (endIndex < 0)
             {
-                return "";
+                return null;
             }
 
             int range = endIndex - startIndex - 1;
@@ -101,10 +93,38 @@ namespace ScriptBuilder
                 range = 0;
             }
 
-            output += String.Join(Environment.NewLine, lines.GetRange(startIndex + 1, range));
-
-            output += Environment.NewLine;
-            return output;
+            return lines.GetRange(startIndex + 1, range);
         }
+
+        private string ProcessUsings(List<string> usings)
+        {
+            var filenames = usings.Where(t => !string.IsNullOrEmpty(t.Trim())).Select(t => Path.Combine(this.sourceDirectory, GetFilenameFromUsing(t)));
+            return String.Join(Environment.NewLine, filenames.Select(ProcessFile));
+        }
+
+        private string GetFilenameFromUsing(string usingLine)
+        {
+            return usingLine.Substring(usingLine.IndexOf("=") + 2).Replace(".", "\\").Replace(";", "") + ".cs";
+        }
+
+        private string defaultUsings = @"
+using Sandbox.ModAPI.Ingame;
+using Sandbox.ModAPI.Interfaces;
+using SpaceEngineers.Game.ModAPI.Ingame;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using VRage.Game.ModAPI.Ingame;
+using VRageMath;
+
+namespace SEScripts.Grids
+{{
+    public class {0}a : Skeleton
+    {{
+        {1}
+    }}
+}}";
     }
 }

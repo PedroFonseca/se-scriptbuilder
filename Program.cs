@@ -8,9 +8,9 @@ using System.Threading.Tasks;
 
 namespace ScriptBuilder
 {
-    class Program
+    internal class Program
     {
-        static void Main(string[] args)
+        private static void Main(string[] args)
         {
             Program.DisplayBanner();
 
@@ -36,14 +36,13 @@ namespace ScriptBuilder
         {
             string sourceDir = Program.GetParam(args, 0);
             string scriptName = Program.GetParam(args, 1);
-            string outputDir = Program.GetOutputDir();
+            bool withUsings = Program.GetParam(args, 2) == "withUsings";
 
             Console.WriteLine(" Source: " + sourceDir);
             Console.WriteLine(" Script Name: " + scriptName);
-            Console.WriteLine(" Output Dir: " + outputDir);
 
-            Script script = new Script(sourceDir, outputDir, scriptName);
-            script.Compile();
+            Script script = new Script(sourceDir, scriptName);
+            script.Compile(withUsings);
             script.Write();
         }
 
@@ -75,20 +74,6 @@ namespace ScriptBuilder
                 return args[index];
             }
             return defaultValue;
-        }
-
-        private static string GetOutputDir()
-        {
-            if (Environment.GetEnvironmentVariable("SE_SCRIPT_HOME") != null) {
-                return Environment.GetEnvironmentVariable("SE_SCRIPT_HOME");
-            }
-
-            string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SpaceEngineers", "IngameScripts", "local");
-            if (Directory.Exists(path)) {
-                return path;
-            } else {
-                throw new ArgumentException("Unable to find Space Engineers local script path");
-            }
         }
     }
 }
