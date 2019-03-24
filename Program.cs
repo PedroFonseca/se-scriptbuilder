@@ -10,10 +10,18 @@ namespace ScriptBuilder
 {
     internal class Program
     {
-        private static void Main(string[] args)
+        private static int Main(string[] args)
         {
-            string sourceDir = args[0];
-            new ScriptSolution(sourceDir).CompileScripts();
+            try
+            {
+                string sourceDir = args[0];
+                new ScriptSolution(sourceDir).CompileScripts();
+                return 0;
+            }
+            catch (Exception)
+            {
+                return 1;
+            }
         }
     }
 }
