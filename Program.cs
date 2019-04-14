@@ -14,8 +14,15 @@ namespace ScriptBuilder
         {
             try
             {
+                if(args.Length == 0)
+                {
+                    Console.WriteLine("Argument needed with path for runnning scripts!");
+                    Console.WriteLine("Failed!");
+                    return 1;
+                }
                 string sourceDir = args[0];
                 new ScriptSolution(sourceDir).CompileScripts();
+                Console.WriteLine("Scripts compiled successfully!");
                 return 0;
             }
             catch (Exception)
